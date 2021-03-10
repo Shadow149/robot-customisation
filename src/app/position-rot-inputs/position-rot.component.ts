@@ -56,6 +56,7 @@ export class PositionRotationComponent {
             this.rz = changes.values.currentValue.ang[2];
             this.a = changes.values.currentValue.ang[3];
             this.angleAxisToEuler()
+            this.emitInfo()
         }
     }
 
@@ -175,8 +176,8 @@ export class PositionRotationComponent {
             else if (slider == 'z'){
                 this.ez = newVal;
             }
-            this.emitInfo();
             this.eulerToAngleAxis()
+            this.emitInfo();
         }
     }
 

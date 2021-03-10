@@ -1187,9 +1187,9 @@ export class AppComponent implements AfterViewInit {
     document.body.removeChild(element);
   }
 
-  createSnackBar(message){
+  createSnackBar(message, duration){
     let snackBarRef = this.snackBar.open(message, '', {
-      duration: 1000,
+      duration: duration * 1000,
     });
   }
 
@@ -1221,47 +1221,56 @@ export class AppComponent implements AfterViewInit {
 
     this.copyCodeToClipboard();
 
-    this.createSnackBar('Copied to clipboard!');
+    this.createSnackBar('Copied to clipboard!', 1);
   }
   
   import(inputElement){
     
     let json;
     
+    // Try to decode inputted code
     try {
       if (inputElement.value == ""){
-        this.createSnackBar('Invalid Code');
+        this.createSnackBar('Invalid Code', 1);
         return
       }
       json = Object.assign({},cjson.decompress.fromString(LZString.decompressFromBase64(inputElement.value)))
     } catch (error) {
-      this.createSnackBar('Invalid Code');
+      this.createSnackBar('Invalid Code', 1);
       return
     }
 
     this.distanceSensorValues = []
     this.wheelSensorValues = []
     this.checkboxValues = {}
-
+    
+    // Set all checkbox values to "", for checks later
     for (let c in components){
       this.checkboxValues[components[c].dictName] = ""
     }
     
     // Create new selectedDevices
     for(let component in json){
+      // Get position and angle values
       let value = {
         pos: [json[component].pos[0],json[component].pos[1],json[component].pos[2]],
         ang: [json[component].ang[0],json[component].ang[1],json[component].ang[2],json[component].ang[3]]
       }
+      // Add data to lists
       if (json[component].name == "Distance Sensor"){
         this.distanceSensorValues.push(value)
       }
       else if (json[component].name == "Wheel"){
         this.wheelSensorValues.push(value)
       } else {
+        // If a checkbox value
+        // For all available checkbox components
         for (let c in components){
+          // If component in code == component in list
           if (components[c].dictName == component){
+            // Add value to list
             this.checkboxValues[component] = value
+            // If not already in selectedDevices - Increase cost
             if (this.selectedDevices[component] == undefined)
             {
               this.cost += components[c].cost
@@ -1269,6 +1278,7 @@ export class AppComponent implements AfterViewInit {
           }
         }
       }
+      // Update json
       json[component] = {
         "dictName": component,
         "name": json[component].name,
@@ -1283,21 +1293,43 @@ export class AppComponent implements AfterViewInit {
       }
     }
 
-    this.selectedDevices = json;
-
+    // Set new wheel number
     this.previousWheelNumber = this.numberOfWheels;
     this.numberOfWheels = this.wheelSensorValues.length
     this.wheelsIterator = Array(this.numberOfWheels).fill(0);
+
+    // Remove extra wheels the import code doesn't have
+    if ((this.previousWheelNumber-this.numberOfWheels) > 0){
+      for (let i = this.previousWheelNumber; i > this.numberOfWheels; i --){
+        this.destoryDevice(this.selectedDevices["Wheel " + i.toString()]);
+      }
+    }
+    // Increase cost
     this.cost += (this.numberOfWheels * this.wheelCost) - (this.previousWheelNumber * this.wheelCost)
     
+    // Set new distance sensor colour
     this.previousDistNumber = this.numberOfDists
     this.numberOfDists = this.distanceSensorValues.length
-    this.distsIterator = Array(this.numberOfDists).fill(0);
-    this.cost += (this.numberOfDists * this.distCost) - (this.previousDistNumber * this.distCost)
+    
+    // Remove extra distance sensors the import code doesn't have
+    if ((this.previousDistNumber-this.numberOfDists) > 0){
+      for (let i = this.previousDistNumber; i > this.numberOfDists; i --){
+        this.destoryDevice(this.selectedDevices["Distance Sensor " + i.toString()]);
+      }
+    }
 
+    this.distsIterator = Array(this.numberOfDists).fill(0);
+    // Increase cost
+    this.cost += (this.numberOfDists * this.distCost) - (this.previousDistNumber * this.distCost)
+    
+    this.selectedDevices = json;
+
+    // Create new three js models
     for (let component in this.selectedDevices){
       this.createThreeModel(this.selectedDevices[component].dictName);
     }
+
+    // Clear share code input box
     inputElement.value = ""
   }
   
